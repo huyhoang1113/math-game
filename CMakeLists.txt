@@ -24,6 +24,8 @@ add_executable(math
     src/main.cpp
 )
 
+target_include_directories(math PRIVATE "include")
+
 target_link_libraries(math raylib)
 
 if (APPLE)
