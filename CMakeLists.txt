@@ -3,6 +3,9 @@ project(math-random)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 # raylib
 set(RAYLIB_VERSION 6.0)
 find_package(raylib ${RAYLIB_VERSION} QUIET) # QUIET or REQUIRED
