@@ -9,9 +9,11 @@ extern "C" {
 #include<random>
 #include<array>
 #include<vector>
+#include<cmath>
 
-std::vector<std::vector<std::string>> objectspawn;
-std::vector<std::vector<int>> posobject;
+std::vector<std::vector<std::string>> objectspawn; // {string expression, string number}
+std::vector<std::vector<int>> posobject; // {x, y}
+
 
 void Spawn() {
     std::random_device rd;
@@ -31,6 +33,15 @@ void Spawn() {
     if (exp == 4) obj = "/";
     if (exp == 5) obj = "^";
     objectspawn.push_back({obj, std::to_string(numgen(gen))});
+}
+
+long double Calculate(std::string exp, int number, int sum) {
+    if (exp == "+") sum += number;
+    if (exp == "-") sum -= number;
+    if (exp == "*") sum *= number;
+    if (exp == "/") sum /= number;
+    if (exp == "^") sum = pow(sum,number);
+    return sum;
 }
 
 int main() {
@@ -69,18 +80,18 @@ int main() {
     std::filesystem::current_path(currentDir);
 
     // Menu clones
-    const int clones = 30;
-    Vector2 posistionsmenu[clones];
-    Vector2 visualposistionsmenu[clones];
-    float directionmenu[clones];
-    float visualdirectionmenu[clones];
-    Vector2 textSizemenu[clones];
-    float textsizes[clones];
-    float speeds[clones];
-    std::string clonetext[clones];
-    std::string expressions[clones];
-    float randomturn[clones];
-    for (int i = 0; i < clones; i++) {
+    const int menuclones = 30;
+    Vector2 posistionsmenu[menuclones];
+    Vector2 visualposistionsmenu[menuclones];
+    float directionmenu[menuclones];
+    float visualdirectionmenu[menuclones];
+    Vector2 textSizemenu[menuclones];
+    float textsizes[menuclones];
+    float speeds[menuclones];
+    std::string clonetext[menuclones];
+    std::string expressions[menuclones];
+    float randomturn[menuclones];
+    for (int i = 0; i < menuclones; i++) {
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_int_distribution<int> posx(0, 800);
@@ -119,6 +130,8 @@ int main() {
     // Spawn random
     float timer = 0;
     float spawnTime = 0.5;
+
+    int clones = 0;
 
     while (!WindowShouldClose()) {
         // Make the title move while moving the mouse
@@ -210,9 +223,20 @@ int main() {
         if (mouseOverplayb && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) startgame = true;
 
         std::stringstream ss;
+
+        // String
+        int gamefontSize = 60;
+        std::string stringresult = std::to_string(result);
+        int textWidth;
+        int posX;
+
         // Gameplay or Menu run
-        if (startgame) { 
+        if (startgame) {
             ss << result;
+            stringresult = ss.str();
+            textWidth = MeasureText(stringresult.c_str(), gamefontSize);
+            posX = (800 - textWidth) / 2;
+            Rectangle sumrec = {(float)posX, (float)267, (float)textWidth, (float)gamefontSize};
             timer += GetFrameTime();
             if (timer >= spawnTime) {
                 Spawn();
@@ -221,10 +245,28 @@ int main() {
                 std::uniform_int_distribution<int> timerand(1, 2);
                 spawnTime = timerand(gen);
                 timer = 0;
+                clones += 1;
             }
-            
-        } else {
+            std::vector<Rectangle> objectspawnbounds(clones);
             for (int i = 0; i < clones; i++) {
+                std::string spawnr;
+                if (stod(objectspawn[i][1]) < 0) spawnr = objectspawn[i][0] + "(" + objectspawn[i][1] + ")";
+                else spawnr = objectspawn[i][0] + objectspawn[i][1];
+                objectspawnbounds[i] = {(float)posobject[i][0], (float)posobject[i][1], (float)MeasureText(spawnr.c_str(), gamefontSize), (float)gamefontSize};
+                if (CheckCollisionPointRec(mousePos, objectspawnbounds[i]) && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+                    posobject[i][0] = mousePos.x - ((float)MeasureText(spawnr.c_str(), gamefontSize) / 2);
+                    posobject[i][1] = mousePos.y - ((float)gamefontSize / 2);
+                }
+                if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) if (CheckCollisionRecs(sumrec, objectspawnbounds[i])) {
+                    result = Calculate(objectspawn[i][0], stoi(objectspawn[i][1]), result);
+                    objectspawn.erase(objectspawn.begin() + i);
+                    posobject.erase(posobject.begin() + i);
+                    objectspawnbounds.erase(objectspawnbounds.begin() + i);
+                    clones -= 1;
+                }
+            }
+        } else {
+            for (int i = 0; i < menuclones; i++) {
                 visualdirectionmenu[i] += randomturn[i];
                 float radians = directionmenu[i] * DEG2RAD;
                 Vector2 dir = {cosf(radians), sinf(radians)};
@@ -243,13 +285,7 @@ int main() {
                 visualposistionsmenu[i].y = posistionsmenu[i].y + (mouseX / 40);
             }
         }
-
-        // String
-        std::string stringresult = std::to_string(result);
-        stringresult = ss.str();
-        int gamefontSize = 60;
-        int textWidth = MeasureText(stringresult.c_str(), gamefontSize);
-        int posX = (800 - textWidth) / 2;
+        
 
         // Draw
         BeginDrawing();
@@ -259,14 +295,14 @@ int main() {
             DrawTextEx(font3, stringresult.c_str(), {(float)posX, 267}, gamefontSize, 2, RED);
             if (objectspawn.size() != 0) for (int i = 0; i < objectspawn.size(); i++) {
                 std::string spawn;
-                if (stod(objectspawn[i][1]) < 0) spawn = objectspawn[i][0] + "(" + objectspawn[i][1] + ")";
+                if (stoi(objectspawn[i][1]) < 0) spawn = objectspawn[i][0] + "(" + objectspawn[i][1] + ")";
                 else spawn = objectspawn[i][0] + objectspawn[i][1];
                 Vector2 spawnpos = {posobject[i][0], posobject[i][1]};
                 DrawTextEx(font3, spawn.c_str(), spawnpos, gamefontSize, 2, BLACK);
             }
         } else {
             DrawTextureEx(bg1, menubgpos, 0, 1.1, WHITE);
-            for (int i = 0; i < clones; i++) {
+            for (int i = 0; i < menuclones; i++) {
                 Vector2 origin = {textSizemenu[i].x / 2, textSizemenu[i].y / 2};
                 DrawTextPro(font3, clonetext[i].c_str(), visualposistionsmenu[i], origin, visualdirectionmenu[i], textsizes[i], 2, BLACK);
             }
