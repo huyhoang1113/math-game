@@ -1,7 +1,7 @@
 extern "C" {
 #include "raylib.h"
 }
-
+#include "raymath.h"
 #include <array>
 #include <cmath>
 #include <cstdlib>
@@ -20,6 +20,15 @@ int width = 800, height = 600;
 
 std::random_device rd;
 std::mt19937 gen(rd());
+
+typedef enum TextAlignment {
+    TEXT_ALIGN_LEFT = 0,
+    TEXT_ALIGN_TOP = 0,
+    TEXT_ALIGN_CENTRE = 1,
+    TEXT_ALIGN_MIDDLE = 1,
+    TEXT_ALIGN_RIGHT = 2,
+    TEXT_ALIGN_BOTTOM = 2
+} TextAlignment;
 
 void Spawn() {
     std::uniform_int_distribution<int> posx(0, width);
@@ -66,6 +75,8 @@ int main() {
 
     InitWindow(width, height, "Math random");
 
+    Rectangle textContainerRect = {(float)width / 2 - (float)width / 4,(float)height / 2 - (float)height / 3, (float)width / 2, (float)height * 2 / 3};
+
     if (!IsWindowReady()) {
         std::cerr << "failed to open window" << '\n';
         return 1;
@@ -93,7 +104,7 @@ int main() {
     int xset = 0;
 
     // The core thing
-    long double result = 0;
+    long double result = 1.0/(8192*4);
 
     // Check if play
     bool startgame = false;
@@ -171,6 +182,10 @@ int main() {
     float spawnTime = 0.5;
 
     int clones = 0;
+
+    // Intialize alignment variables
+    TextAlignment hAlign = TEXT_ALIGN_CENTRE;
+    TextAlignment vAlign = TEXT_ALIGN_MIDDLE;
 
     while (!WindowShouldClose()) {
         if (IsWindowResized()) {
@@ -282,18 +297,24 @@ int main() {
 
         // String
         int gamefontSize = 60;
+        ss << std::setprecision(30) << result;
         std::string stringresult = std::to_string(result);
-        int textWidth;
-        int posX;
+        stringresult = ss.str();
+        Vector2 gametextSize = MeasureTextEx(font3, stringresult.c_str(), (float)gamefontSize, 2.0);
+        Vector2 resulttextPos = {textContainerRect.x + Lerp(0.0f, textContainerRect.width - gametextSize.x, ((float)hAlign) * 0.5f),
+            textContainerRect.y + Lerp(0.0f, textContainerRect.height - gametextSize.y, ((float)vAlign) * 0.5f)};
+
+        Rectangle sumrec = {(float)resulttextPos.x, (float)resulttextPos.y,
+                            (float)gametextSize.x, (float)gamefontSize};
 
         // Gameplay or Menu run
         if (startgame) {
-            ss << std::setprecision(30) << result;
-            stringresult = ss.str();
-            textWidth = MeasureText(stringresult.c_str(), gamefontSize);
-            posX = (width - textWidth) / 2; // Alignment
-            Rectangle sumrec = {(float)posX, (float)267, (float)textWidth,
-                                (float)gamefontSize};
+            // First error check :)
+            if (stringresult.size() > 25) {
+                std::cout << "NUMBER TOO LONG :)" << "\n";
+                break;
+            }
+
             timer += GetFrameTime();
             if (timer >= spawnTime) {
                 Spawn();
@@ -358,7 +379,8 @@ int main() {
         ClearBackground(RAYWHITE);
         if (startgame) {
             DrawTextureEx(bg1, {1, 0}, 0, 1, WHITE);
-            DrawTextEx(font3, stringresult.c_str(), {(float)posX, 267},
+            DrawTextEx(font3, stringresult.c_str(),
+                       {(float)resulttextPos.x, (float)resulttextPos.y},
                        gamefontSize, 2, RED);
             if (objectspawn.size() != 0)
                 for (int i = 0; i < objectspawn.size(); i++) {
