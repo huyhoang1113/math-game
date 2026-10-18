@@ -12,10 +12,8 @@ extern "C" {
 #include <string>
 #include <vector>
 
-std::vector<std::vector<std::string>>
-    objectspawn;                         // {string expression, string number}
+std::vector<std::vector<std::string>> objectspawn; // {string expression, string number}
 std::vector<std::vector<int>> posobject; // {int x, int y}
-                                         //
 int width = 800, height = 600;
 
 std::random_device rd;
@@ -66,7 +64,8 @@ long double Calculate(std::string exp, int number, long double sum) {
     if (exp == "*") sum *= number;
     if (exp == "/") sum /= number;
     if (exp == "^") sum = pow(sum, number);
-    if (std::isinf(sum)) sum = 0;
+    // if (std::isinf(sum)) sum = 0; // bruh nah we need to delete this because this will cause error (in game)
+    if (sum == -0) sum = 0;
     return sum;
 }
 
@@ -96,6 +95,7 @@ int main() {
     Texture2D credits = LoadTexture("creditsbutton.png");
     Texture2D settings = LoadTexture("settingsbutton.png");
     Texture2D playbutton = LoadTexture("play.png");
+    Texture2D trashbin = LoadTexture("trash.png");
     Font font1 = LoadFont("fonts/JetBrainsMono-ExtraBold.ttf");
     Font font2 = LoadFont("fonts/JetBrainsMono-MediumItalic.ttf");
     Font font3 = LoadFont("fonts/JetBrainsMono-Bold.ttf");
@@ -104,7 +104,8 @@ int main() {
     int xset = 0;
 
     // The core thing
-    long double result = 1.0/(8192*4);
+    long double result = 0;
+    int score = 0;
 
     // Check if play
     bool startgame = false;
@@ -167,11 +168,9 @@ int main() {
         posistionsmenu[i] = {x, y};
         directionmenu[i] = dir;
         visualdirectionmenu[i] = dir;
-        if (number < 0)
-            clonetext[i] = expressions[i] + "(" + std::to_string(number) + ")";
+        if (number < 0) clonetext[i] = expressions[i] + "(" + std::to_string(number) + ")";
         else clonetext[i] = expressions[i] + std::to_string(number);
-        textSizemenu[i] =
-            MeasureTextEx(font3, clonetext[i].c_str(), textsizes[i], 2);
+        textSizemenu[i] = MeasureTextEx(font3, clonetext[i].c_str(), textsizes[i], 2);
         speeds[i] = clonespeed;
         if (randgen == 0) randomturn[i] = 0.05;
         else randomturn[i] = -0.05;
@@ -187,10 +186,12 @@ int main() {
     TextAlignment hAlign = TEXT_ALIGN_CENTRE;
     TextAlignment vAlign = TEXT_ALIGN_MIDDLE;
 
+    // Trash
+    Vector2 trashpos = {730, 530};
+
     while (!WindowShouldClose()) {
         if (IsWindowResized()) {
-            // callback for window resizing (should change width/height but i'm
-            // lazy)
+            // callback for window resizing (should change width/height but i'm lazy)
             width = GetScreenWidth();
             height = GetScreenHeight();
         }
@@ -209,23 +210,16 @@ int main() {
         Vector2 settingstextpos = {-108, 132};
 
         // Rectangle representing the button's bounds
-        Rectangle textureBoundscredits = {creditspos.x, creditspos.y,
-                                          (float)credits.width,
-                                          (float)credits.height};
-        Rectangle textureBoundssettings = {settingspos.x, settingspos.y,
-                                           (float)settings.width,
-                                           (float)settings.height};
-        Rectangle textureBoundsplayb = {playpos.x, playpos.y,
-                                        (float)playbutton.width,
-                                        (float)playbutton.height};
+        Rectangle textureBoundscredits = {creditspos.x, creditspos.y, (float)credits.width, (float)credits.height};
+        Rectangle textureBoundssettings = {settingspos.x, settingspos.y, (float)settings.width, (float)settings.height};
+        Rectangle textureBoundsplayb = {playpos.x, playpos.y, (float)playbutton.width, (float)playbutton.height};
+        Rectangle textureBoundstrashbin = {trashpos.x, trashpos.y, (float)trashbin.width*0.275, (float)trashbin.height*0.275};
 
         // Define boolean checks if mouse was hovered on sth
-        bool mouseOvercredits =
-            CheckCollisionPointRec(mousePos, textureBoundscredits);
-        bool mouseOversettings =
-            CheckCollisionPointRec(mousePos, textureBoundssettings);
-        bool mouseOverplayb =
-            CheckCollisionPointRec(mousePos, textureBoundsplayb);
+        bool mouseOvercredits = CheckCollisionPointRec(mousePos, textureBoundscredits);
+        bool mouseOversettings = CheckCollisionPointRec(mousePos, textureBoundssettings);
+        bool mouseOverplayb = CheckCollisionPointRec(mousePos, textureBoundsplayb);
+        bool mouseOvertrashbin = CheckCollisionPointRec(mousePos, textureBoundstrashbin);
 
         // Check credits button touch and animation
         if (mouseOvercredits) {
@@ -301,20 +295,12 @@ int main() {
         std::string stringresult = std::to_string(result);
         stringresult = ss.str();
         Vector2 gametextSize = MeasureTextEx(font3, stringresult.c_str(), (float)gamefontSize, 2.0);
-        Vector2 resulttextPos = {textContainerRect.x + Lerp(0.0f, textContainerRect.width - gametextSize.x, ((float)hAlign) * 0.5f),
-            textContainerRect.y + Lerp(0.0f, textContainerRect.height - gametextSize.y, ((float)vAlign) * 0.5f)};
+        Vector2 resulttextPos = {textContainerRect.x + Lerp(0.0f, textContainerRect.width - gametextSize.x, ((float)hAlign) * 0.5f), textContainerRect.y + Lerp(0.0f, textContainerRect.height - gametextSize.y, ((float)vAlign) * 0.5f)};
 
-        Rectangle sumrec = {(float)resulttextPos.x, (float)resulttextPos.y,
-                            (float)gametextSize.x, (float)gamefontSize};
+        Rectangle sumrec = {(float)resulttextPos.x, (float)resulttextPos.y, (float)gametextSize.x, (float)gamefontSize};
 
         // Gameplay or Menu run
         if (startgame) {
-            // First error check :)
-            if (stringresult.size() > 25) {
-                std::cout << "NUMBER TOO LONG :)" << "\n";
-                break;
-            }
-
             timer += GetFrameTime();
             if (timer >= spawnTime) {
                 Spawn();
@@ -337,21 +323,44 @@ int main() {
                     (float)gamefontSize};
                 if (CheckCollisionPointRec(mousePos, objectspawnbounds[i]) &&
                     IsMouseButtonDown(MOUSE_LEFT_BUTTON)) { // Drag
-                    posobject[i][0] =
-                        mousePos.x -
-                        ((float)MeasureText(spawnr.c_str(), gamefontSize) / 2);
+                    posobject[i][0] = mousePos.x - ((float)MeasureText(spawnr.c_str(), gamefontSize) / 2);
                     posobject[i][1] = mousePos.y - ((float)gamefontSize / 2);
                 }
-                if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON))
-                    if (CheckCollisionRecs(
-                            sumrec, objectspawnbounds[i])) { // Check if drop
-                        result = Calculate(objectspawn[i][0],
-                                           stoi(objectspawn[i][1]), result);
+                if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+                    if (CheckCollisionRecs(sumrec, objectspawnbounds[i])) { // Check if drop
+                        result = Calculate(objectspawn[i][0], stoi(objectspawn[i][1]), result);
                         objectspawn.erase(objectspawn.begin() + i);
                         posobject.erase(posobject.begin() + i);
                         objectspawnbounds.erase(objectspawnbounds.begin() + i);
                         clones -= 1;
+                        break;
                     }
+                    if (CheckCollisionRecs(textureBoundstrashbin, objectspawnbounds[i])) { // Trash
+                        objectspawn.erase(objectspawn.begin() + i);
+                        posobject.erase(posobject.begin() + i);
+                        objectspawnbounds.erase(objectspawnbounds.begin() + i);
+                        clones -= 1;
+                        break;
+                    }
+                }
+            }
+            // Move the trashbin
+            if (mouseOvertrashbin && IsMouseButtonDown(MOUSE_LEFT_BUTTON))
+                trashpos = {mousePos.x - textureBoundstrashbin.width / 2,
+                            mousePos.y - textureBoundstrashbin.height / 2};
+            if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+                for (int i = 0; i < clones; i++)
+                    if (CheckCollisionRecs(textureBoundstrashbin, objectspawnbounds[i])) { // Trash
+                        objectspawn.erase(objectspawn.begin() + i);
+                        posobject.erase(posobject.begin() + i);
+                        objectspawnbounds.erase(objectspawnbounds.begin() + i);
+                        clones -= 1;
+                        break;
+                    }
+                if (CheckCollisionRecs(textureBoundstrashbin, sumrec)) {
+                    std::cout << "WHY DID YOU DELETE THE CORE NOW THE GAME TRASHED ITSELF :SOB:" << "\n";
+                    break;
+                }
             }
         } else {
             for (int i = 0; i < menuclones; i++) {
@@ -379,27 +388,21 @@ int main() {
         ClearBackground(RAYWHITE);
         if (startgame) {
             DrawTextureEx(bg1, {1, 0}, 0, 1, WHITE);
-            DrawTextEx(font3, stringresult.c_str(),
-                       {(float)resulttextPos.x, (float)resulttextPos.y},
-                       gamefontSize, 2, RED);
+            DrawTextEx(font3, stringresult.c_str(), {(float)resulttextPos.x, (float)resulttextPos.y}, gamefontSize, 2, RED);
             if (objectspawn.size() != 0)
                 for (int i = 0; i < objectspawn.size(); i++) {
                     std::string spawn;
-                    if (stoi(objectspawn[i][1]) < 0)
-                        spawn =
-                            objectspawn[i][0] + "(" + objectspawn[i][1] + ")";
+                    if (stoi(objectspawn[i][1]) < 0) spawn = objectspawn[i][0] + "(" + objectspawn[i][1] + ")";
                     else spawn = objectspawn[i][0] + objectspawn[i][1];
                     Vector2 spawnpos = {posobject[i][0], posobject[i][1]};
-                    DrawTextEx(font3, spawn.c_str(), spawnpos, gamefontSize, 2,
-                               BLACK);
+                    DrawTextEx(font3, spawn.c_str(), spawnpos, gamefontSize, 2, BLACK);
                 }
+            DrawTextureEx(trashbin, trashpos, 0, 0.275, WHITE);
         } else {
             DrawTextureEx(bg1, menubgpos, 0, 1.1 * (width - 799), WHITE);
             for (int i = 0; i < menuclones; i++) {
                 Vector2 origin = {textSizemenu[i].x / 2, textSizemenu[i].y / 2};
-                DrawTextPro(font3, clonetext[i].c_str(),
-                            visualposistionsmenu[i], origin,
-                            visualdirectionmenu[i], textsizes[i], 2, BLACK);
+                DrawTextPro(font3, clonetext[i].c_str(), visualposistionsmenu[i], origin, visualdirectionmenu[i], textsizes[i], 2, BLACK);
             }
             DrawTextureEx(credits, creditspos, 0, 1, WHITE);
             DrawTextureEx(settings, settingspos, 0, 1, WHITE);
@@ -415,6 +418,7 @@ int main() {
     UnloadTexture(credits);
     UnloadTexture(settings);
     UnloadTexture(playbutton);
+    UnloadTexture(trashbin);
     UnloadFont(font1);
     UnloadFont(font2);
     UnloadFont(font3);
