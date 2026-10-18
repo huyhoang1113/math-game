@@ -2,24 +2,28 @@ extern "C" {
 #include "raylib.h"
 }
 
-#include <iostream>
+#include <array>
+#include <cmath>
+#include <cstdlib>
 #include <filesystem>
-#include<string>
+#include <iostream>
+#include <random>
 #include <sstream>
-#include<random>
-#include<array>
-#include<vector>
-#include<cmath>
+#include <string>
+#include <vector>
 
-std::vector<std::vector<std::string>> objectspawn; // {string expression, string number}
+std::vector<std::vector<std::string>>
+    objectspawn;                         // {string expression, string number}
 std::vector<std::vector<int>> posobject; // {int x, int y}
+                                         //
+int width = 800, height = 600;
 
+std::random_device rd;
+std::mt19937 gen(rd());
 
 void Spawn() {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<int> posx(0, 800);
-    std::uniform_int_distribution<int> posy(0, 600);
+    std::uniform_int_distribution<int> posx(0, width);
+    std::uniform_int_distribution<int> posy(0, height);
     posobject.push_back({posx(gen), posy(gen)});
     std::uniform_int_distribution<int> expression(1, 5);
     std::uniform_int_distribution<int> random(0, 1);
@@ -27,11 +31,23 @@ void Spawn() {
     int exp = expression(gen);
     std::string obj;
     std::uniform_int_distribution<int> numgen(exp > 2 ? -9 : 1, 9);
-    if (exp == 1) obj = "+";
-    if (exp == 2) obj = "-";
-    if (exp == 3) obj = "*";
-    if (exp == 4) obj = "/";
-    if (exp == 5) obj = "^";
+    switch (exp) {
+    case 1:
+        obj = "+";
+        break;
+    case 2:
+        obj = "-";
+        break;
+    case 3:
+        obj = "*";
+        break;
+    case 4:
+        obj = "/";
+        break;
+    case 5:
+        obj = "^";
+        break;
+    }
     objectspawn.push_back({obj, std::to_string(numgen(gen))});
 }
 
@@ -40,19 +56,29 @@ long double Calculate(std::string exp, int number, long double sum) {
     if (exp == "-") sum -= number;
     if (exp == "*") sum *= number;
     if (exp == "/") sum /= number;
-    if (exp == "^") sum = pow(sum,number);
+    if (exp == "^") sum = pow(sum, number);
+    if (std::isinf(sum)) sum = 0;
     return sum;
 }
 
 int main() {
     std::cout << "starting window\n";
 
-    InitWindow(800, 600, "Math random");
+    InitWindow(width, height, "Math random");
+
+    if (!IsWindowReady()) {
+        std::cerr << "failed to open window" << '\n';
+        return 1;
+    }
 
     SetTargetFPS(1000);
 
+    // get assets path from envvar MATH_GAME_ASSETS_DIR
+    const char* assetspath = std::getenv("MATH_GAME_ASSETS_DIR");
+    if (assetspath == nullptr) { assetspath = "../../../assets"; }
+
     auto currentDir = std::filesystem::current_path();
-    std::filesystem::current_path("../../../assets");
+    std::filesystem::current_path(assetspath);
 
     // Inserting textures, fonts
     Texture2D bg1 = LoadTexture("bg1.png");
@@ -92,10 +118,8 @@ int main() {
     std::string expressions[menuclones];
     float randomturn[menuclones];
     for (int i = 0; i < menuclones; i++) {
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_int_distribution<int> posx(0, 800);
-        std::uniform_int_distribution<int> posy(0, 600);
+        std::uniform_int_distribution<int> posx(0, width);
+        std::uniform_int_distribution<int> posy(0, height);
         std::uniform_int_distribution<int> direction(0, 360);
         std::uniform_int_distribution<int> textSize(30, 75);
         std::uniform_int_distribution<int> speed(2, 3);
@@ -104,13 +128,26 @@ int main() {
         int randgen = random(gen);
         int exp = expression(gen);
         int number;
-        std::uniform_int_distribution<int> numgen(exp > 2 ? -9:1, 9);
+        std::uniform_int_distribution<int> numgen(exp > 2 ? -9 : 1, 9);
         number = numgen(gen);
-        if (exp == 1) expressions[i] = "+";
-        if (exp == 2) expressions[i] = "-";
-        if (exp == 3) expressions[i] = "*";
-        if (exp == 4) expressions[i] = "/";
-        if (exp == 5) expressions[i] = "^";
+        switch (exp) {
+        case 1:
+            expressions[i] = "+";
+            break;
+        case 2:
+            expressions[i] = "-";
+            break;
+        case 3:
+            expressions[i] = "*";
+            break;
+        case 4:
+            expressions[i] = "/";
+            break;
+        case 5:
+            expressions[i] = "^";
+            break;
+        }
+
         float x = posx(gen);
         float y = posy(gen);
         float dir = direction(gen);
@@ -119,11 +156,13 @@ int main() {
         posistionsmenu[i] = {x, y};
         directionmenu[i] = dir;
         visualdirectionmenu[i] = dir;
-        if (number < 0) clonetext[i] = expressions[i] + "(" + std::to_string(number) + ")";
+        if (number < 0)
+            clonetext[i] = expressions[i] + "(" + std::to_string(number) + ")";
         else clonetext[i] = expressions[i] + std::to_string(number);
-        textSizemenu[i] = MeasureTextEx(font3, clonetext[i].c_str(), textsizes[i], 2);
+        textSizemenu[i] =
+            MeasureTextEx(font3, clonetext[i].c_str(), textsizes[i], 2);
         speeds[i] = clonespeed;
-        if (randgen == 0) randomturn[i]=0.05;
+        if (randgen == 0) randomturn[i] = 0.05;
         else randomturn[i] = -0.05;
     }
 
@@ -134,7 +173,14 @@ int main() {
     int clones = 0;
 
     while (!WindowShouldClose()) {
-        // Make the title move while moving the mouse
+        if (IsWindowResized()) {
+            // callback for window resizing (should change width/height but i'm
+            // lazy)
+            width = GetScreenWidth();
+            height = GetScreenHeight();
+        }
+
+        // Make the title move while moving the mouse (parallax)
         Vector2 mousePos = GetMousePosition();
         float mouseX = mousePos.x;
         float mouseY = mousePos.y;
@@ -148,14 +194,23 @@ int main() {
         Vector2 settingstextpos = {-108, 132};
 
         // Rectangle representing the button's bounds
-        Rectangle textureBoundscredits = {creditspos.x, creditspos.y, (float)credits.width, (float)credits.height};
-        Rectangle textureBoundssettings = {settingspos.x, settingspos.y, (float)settings.width, (float)settings.height};
-        Rectangle textureBoundsplayb = {playpos.x, playpos.y, (float)playbutton.width, (float)playbutton.height};
+        Rectangle textureBoundscredits = {creditspos.x, creditspos.y,
+                                          (float)credits.width,
+                                          (float)credits.height};
+        Rectangle textureBoundssettings = {settingspos.x, settingspos.y,
+                                           (float)settings.width,
+                                           (float)settings.height};
+        Rectangle textureBoundsplayb = {playpos.x, playpos.y,
+                                        (float)playbutton.width,
+                                        (float)playbutton.height};
 
         // Define boolean checks if mouse was hovered on sth
-        bool mouseOvercredits = CheckCollisionPointRec(mousePos, textureBoundscredits);
-        bool mouseOversettings = CheckCollisionPointRec(mousePos, textureBoundssettings);
-        bool mouseOverplayb = CheckCollisionPointRec(mousePos, textureBoundsplayb);
+        bool mouseOvercredits =
+            CheckCollisionPointRec(mousePos, textureBoundscredits);
+        bool mouseOversettings =
+            CheckCollisionPointRec(mousePos, textureBoundssettings);
+        bool mouseOverplayb =
+            CheckCollisionPointRec(mousePos, textureBoundsplayb);
 
         // Check credits button touch and animation
         if (mouseOvercredits) {
@@ -187,7 +242,7 @@ int main() {
                 creditstextpos.x = -105;
             }
         }
-        
+
         // Check options button touch and animation
         if (mouseOversettings) {
             justtouchsettingsbutton = true;
@@ -220,7 +275,8 @@ int main() {
         }
 
         // Check if play button got pressed
-        if (mouseOverplayb && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) startgame = true;
+        if (mouseOverplayb && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+            startgame = true;
 
         std::stringstream ss;
 
@@ -234,9 +290,10 @@ int main() {
         if (startgame) {
             ss << std::setprecision(30) << result;
             stringresult = ss.str();
-            textWidth = MeasureText(stringresult.c_str(), gamefontSize); 
-            posX = (800 - textWidth) / 2; // Alignment
-            Rectangle sumrec = {(float)posX, (float)267, (float)textWidth, (float)gamefontSize};
+            textWidth = MeasureText(stringresult.c_str(), gamefontSize);
+            posX = (width - textWidth) / 2; // Alignment
+            Rectangle sumrec = {(float)posX, (float)267, (float)textWidth,
+                                (float)gamefontSize};
             timer += GetFrameTime();
             if (timer >= spawnTime) {
                 Spawn();
@@ -250,20 +307,30 @@ int main() {
             std::vector<Rectangle> objectspawnbounds(clones);
             for (int i = 0; i < clones; i++) {
                 std::string spawnr;
-                if (stod(objectspawn[i][1]) < 0) spawnr = objectspawn[i][0] + "(" + objectspawn[i][1] + ")";
+                if (stod(objectspawn[i][1]) < 0)
+                    spawnr = objectspawn[i][0] + "(" + objectspawn[i][1] + ")";
                 else spawnr = objectspawn[i][0] + objectspawn[i][1];
-                objectspawnbounds[i] = {(float)posobject[i][0], (float)posobject[i][1], (float)MeasureText(spawnr.c_str(), gamefontSize), (float)gamefontSize};
-                if (CheckCollisionPointRec(mousePos, objectspawnbounds[i]) && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) { // Drag
-                    posobject[i][0] = mousePos.x - ((float)MeasureText(spawnr.c_str(), gamefontSize) / 2);
+                objectspawnbounds[i] = {
+                    (float)posobject[i][0], (float)posobject[i][1],
+                    (float)MeasureText(spawnr.c_str(), gamefontSize),
+                    (float)gamefontSize};
+                if (CheckCollisionPointRec(mousePos, objectspawnbounds[i]) &&
+                    IsMouseButtonDown(MOUSE_LEFT_BUTTON)) { // Drag
+                    posobject[i][0] =
+                        mousePos.x -
+                        ((float)MeasureText(spawnr.c_str(), gamefontSize) / 2);
                     posobject[i][1] = mousePos.y - ((float)gamefontSize / 2);
                 }
-                if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) if (CheckCollisionRecs(sumrec, objectspawnbounds[i])) { // Check if drop
-                    result = Calculate(objectspawn[i][0], stoi(objectspawn[i][1]), result);
-                    objectspawn.erase(objectspawn.begin() + i);
-                    posobject.erase(posobject.begin() + i);
-                    objectspawnbounds.erase(objectspawnbounds.begin() + i);
-                    clones -= 1;
-                }
+                if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON))
+                    if (CheckCollisionRecs(
+                            sumrec, objectspawnbounds[i])) { // Check if drop
+                        result = Calculate(objectspawn[i][0],
+                                           stoi(objectspawn[i][1]), result);
+                        objectspawn.erase(objectspawn.begin() + i);
+                        posobject.erase(posobject.begin() + i);
+                        objectspawnbounds.erase(objectspawnbounds.begin() + i);
+                        clones -= 1;
+                    }
             }
         } else {
             for (int i = 0; i < menuclones; i++) {
@@ -272,11 +339,11 @@ int main() {
                 Vector2 dir = {cosf(radians), sinf(radians)};
                 posistionsmenu[i].x += dir.x / speeds[i];
                 posistionsmenu[i].y += dir.y / speeds[i];
-                if (posistionsmenu[i].x <= 0 || posistionsmenu[i].x >= 800) {
+                if (posistionsmenu[i].x <= 0 || posistionsmenu[i].x >= width) {
                     dir.x = -dir.x;
                     randomturn[i] = -randomturn[i];
                 }
-                if (posistionsmenu[i].y <= 0 || posistionsmenu[i].y >= 600) {
+                if (posistionsmenu[i].y <= 0 || posistionsmenu[i].y >= height) {
                     dir.y = -dir.y;
                     randomturn[i] = -randomturn[i];
                 }
@@ -285,26 +352,32 @@ int main() {
                 visualposistionsmenu[i].y = posistionsmenu[i].y + (mouseX / 40);
             }
         }
-        
 
         // Draw
         BeginDrawing();
         ClearBackground(RAYWHITE);
         if (startgame) {
-            DrawTextureEx(bg1, {1,0}, 0, 1, WHITE);
-            DrawTextEx(font3, stringresult.c_str(), {(float)posX, 267}, gamefontSize, 2, RED);
-            if (objectspawn.size() != 0) for (int i = 0; i < objectspawn.size(); i++) {
-                std::string spawn;
-                if (stoi(objectspawn[i][1]) < 0) spawn = objectspawn[i][0] + "(" + objectspawn[i][1] + ")";
-                else spawn = objectspawn[i][0] + objectspawn[i][1];
-                Vector2 spawnpos = {posobject[i][0], posobject[i][1]};
-                DrawTextEx(font3, spawn.c_str(), spawnpos, gamefontSize, 2, BLACK);
-            }
+            DrawTextureEx(bg1, {1, 0}, 0, 1, WHITE);
+            DrawTextEx(font3, stringresult.c_str(), {(float)posX, 267},
+                       gamefontSize, 2, RED);
+            if (objectspawn.size() != 0)
+                for (int i = 0; i < objectspawn.size(); i++) {
+                    std::string spawn;
+                    if (stoi(objectspawn[i][1]) < 0)
+                        spawn =
+                            objectspawn[i][0] + "(" + objectspawn[i][1] + ")";
+                    else spawn = objectspawn[i][0] + objectspawn[i][1];
+                    Vector2 spawnpos = {posobject[i][0], posobject[i][1]};
+                    DrawTextEx(font3, spawn.c_str(), spawnpos, gamefontSize, 2,
+                               BLACK);
+                }
         } else {
-            DrawTextureEx(bg1, menubgpos, 0, 1.1, WHITE);
+            DrawTextureEx(bg1, menubgpos, 0, 1.1 * (width - 799), WHITE);
             for (int i = 0; i < menuclones; i++) {
                 Vector2 origin = {textSizemenu[i].x / 2, textSizemenu[i].y / 2};
-                DrawTextPro(font3, clonetext[i].c_str(), visualposistionsmenu[i], origin, visualdirectionmenu[i], textsizes[i], 2, BLACK);
+                DrawTextPro(font3, clonetext[i].c_str(),
+                            visualposistionsmenu[i], origin,
+                            visualdirectionmenu[i], textsizes[i], 2, BLACK);
             }
             DrawTextureEx(credits, creditspos, 0, 1, WHITE);
             DrawTextureEx(settings, settingspos, 0, 1, WHITE);

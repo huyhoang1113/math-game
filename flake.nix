@@ -9,15 +9,15 @@
         devShells.${system}.default = pkgs.mkShell {
             packages = with pkgs; [
                 cmake
-                    pkg-config
-                    raylib
+                pkg-config
+                raylib
 
-                    xorg.libX11
-                    xorg.libXrandr
-                    xorg.libXinerama
-                    xorg.libXcursor
-                    xorg.libXi
-                    libGL
+                xorg.libX11
+                xorg.libXrandr
+                xorg.libXinerama
+                xorg.libXcursor
+                xorg.libXi
+                libGL
             ];
         };
     };
