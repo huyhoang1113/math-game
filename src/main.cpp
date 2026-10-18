@@ -12,7 +12,7 @@ extern "C" {
 #include<cmath>
 
 std::vector<std::vector<std::string>> objectspawn; // {string expression, string number}
-std::vector<std::vector<int>> posobject; // {x, y}
+std::vector<std::vector<int>> posobject; // {int x, int y}
 
 
 void Spawn() {
@@ -35,7 +35,7 @@ void Spawn() {
     objectspawn.push_back({obj, std::to_string(numgen(gen))});
 }
 
-long double Calculate(std::string exp, int number, int sum) {
+long double Calculate(std::string exp, int number, long double sum) {
     if (exp == "+") sum += number;
     if (exp == "-") sum -= number;
     if (exp == "*") sum *= number;
@@ -232,10 +232,10 @@ int main() {
 
         // Gameplay or Menu run
         if (startgame) {
-            ss << result;
+            ss << std::setprecision(30) << result;
             stringresult = ss.str();
-            textWidth = MeasureText(stringresult.c_str(), gamefontSize);
-            posX = (800 - textWidth) / 2;
+            textWidth = MeasureText(stringresult.c_str(), gamefontSize); 
+            posX = (800 - textWidth) / 2; // Alignment
             Rectangle sumrec = {(float)posX, (float)267, (float)textWidth, (float)gamefontSize};
             timer += GetFrameTime();
             if (timer >= spawnTime) {
@@ -253,11 +253,11 @@ int main() {
                 if (stod(objectspawn[i][1]) < 0) spawnr = objectspawn[i][0] + "(" + objectspawn[i][1] + ")";
                 else spawnr = objectspawn[i][0] + objectspawn[i][1];
                 objectspawnbounds[i] = {(float)posobject[i][0], (float)posobject[i][1], (float)MeasureText(spawnr.c_str(), gamefontSize), (float)gamefontSize};
-                if (CheckCollisionPointRec(mousePos, objectspawnbounds[i]) && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+                if (CheckCollisionPointRec(mousePos, objectspawnbounds[i]) && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) { // Drag
                     posobject[i][0] = mousePos.x - ((float)MeasureText(spawnr.c_str(), gamefontSize) / 2);
                     posobject[i][1] = mousePos.y - ((float)gamefontSize / 2);
                 }
-                if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) if (CheckCollisionRecs(sumrec, objectspawnbounds[i])) {
+                if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) if (CheckCollisionRecs(sumrec, objectspawnbounds[i])) { // Check if drop
                     result = Calculate(objectspawn[i][0], stoi(objectspawn[i][1]), result);
                     objectspawn.erase(objectspawn.begin() + i);
                     posobject.erase(posobject.begin() + i);
